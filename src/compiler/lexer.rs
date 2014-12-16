@@ -1,42 +1,5 @@
-use compiler::PeekableBuffer;
+use compiler::{PeekableBuffer, Token};
 use std::io::IoResult;
-
-#[deriving(Show, PartialEq)]
-pub enum Token {
-    And,
-    Assign,
-    At,
-    Colon,
-    Comma,
-    Divide,
-    Double(f64),
-    EndBlock,
-    EndTerm,
-    Equal,
-    Exit,
-    Identifier(String),
-    Integer(int),
-    Keyword(String),
-    KeywordSequence(String),
-    Less,
-    Minus,
-    Modulus,
-    More,
-    NewBlock,
-    NewTerm,
-    None(char),
-    Not,
-    OperatorSequence(String),
-    Or,
-    Percent,
-    Period,
-    Plus,
-    Pound,
-    Primitive,
-    Separator,
-    Star,
-    String(String),
-}
 
 fn is_operator(c: char) -> bool {
     match c {

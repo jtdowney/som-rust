@@ -1,4 +1,4 @@
-use compiler::lexer::Lexer;
+use compiler::Lexer;
 use std::io::{BufferedReader, IoErrorKind};
 use std::io::fs::File;
 use std::os;
