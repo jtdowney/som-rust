@@ -1,5 +1,5 @@
 use compiler::PeekableBuffer;
-use std::io::{IoErrorKind, IoResult};
+use std::io::IoResult;
 
 #[deriving(Show, PartialEq)]
 pub enum Token {
@@ -38,26 +38,6 @@ pub enum Token {
     String(String),
 }
 
-struct TokenIterator<B: Buffer> {
-    lexer: Lexer<B>
-}
-
-impl<B: Buffer> Iterator<Token> for TokenIterator<B> {
-    fn next(&mut self) -> Option<Token> {
-        match self.lexer.read_token() {
-            Ok(t) => Some(t),
-            Err(ref e) if e.kind == IoErrorKind::EndOfFile => None,
-            Err(e) => panic!("Error during tokenization: {}", e),
-        }
-    }
-}
-
-pub fn tokenize<B: Buffer>(source: B) -> TokenIterator<B> {
-    TokenIterator {
-        lexer: Lexer::new(source)
-    }
-}
-
 fn is_operator(c: char) -> bool {
     match c {
         '~' | '&' | '|' | '*' | '/' | '\\' | '+' | '=' | '>' | '<' | ',' | '@' | '%' => true,
@@ -65,12 +45,12 @@ fn is_operator(c: char) -> bool {
     }
 }
 
-struct Lexer<B: Buffer> {
+pub struct Lexer<B: Buffer> {
     buffer: PeekableBuffer<B>,
 }
 
 impl<B: Buffer> Lexer<B> {
-    fn new(buffer: B) -> Lexer<B> {
+    pub fn new(buffer: B) -> Lexer<B> {
         Lexer { buffer: PeekableBuffer::new(buffer) }
     }
 
