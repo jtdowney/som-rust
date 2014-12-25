@@ -207,10 +207,10 @@ impl<B: Buffer> Lexer<B> {
                 }
             }
 
-            let value = from_str(text.as_slice()).unwrap();
+            let value = text.parse().unwrap();
             Ok(Token::Double(value))
         } else {
-            let value = from_str(text.as_slice()).unwrap();
+            let value = text.parse().unwrap();
             Ok(Token::Integer(value))
         }
     }
