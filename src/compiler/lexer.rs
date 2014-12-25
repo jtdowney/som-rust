@@ -277,14 +277,8 @@ impl<B: Buffer> Lexer<B> {
 
 #[cfg(test)]
 mod test {
-    use super::{Lexer, Token, tokenize};
-
-    #[test]
-    fn tokenize_iterates() {
-        let source = "abc".as_bytes();
-        let mut iterator = tokenize(source);
-        assert_eq!(iterator.next(), Some(Token::Identifier("abc".to_string())));
-    }
+    use compiler::Token;
+    use super::Lexer;
 
     #[test]
     fn tokenization_skips_whitespace() {
