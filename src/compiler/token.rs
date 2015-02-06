@@ -1,4 +1,4 @@
-#[deriving(Show, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     And,
     Assign,
@@ -12,7 +12,7 @@ pub enum Token {
     Equal,
     Exit,
     Identifier(String),
-    Integer(int),
+    Integer(i64),
     Keyword(String),
     KeywordSequence(String),
     Less,

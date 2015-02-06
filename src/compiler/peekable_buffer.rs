@@ -1,4 +1,4 @@
-use std::io::{IoResult, IoErrorKind};
+use std::old_io::{IoResult, IoErrorKind};
 
 pub struct PeekableBuffer<B: Buffer> {
     source: B,
@@ -17,7 +17,7 @@ impl<B: Buffer> PeekableBuffer<B> {
         if self.backlog.is_empty() {
             try!(self.source.read_char());
         } else {
-            self.backlog.remove(0).unwrap();
+            self.backlog.remove(0);
         }
         Ok(())
     }
@@ -62,7 +62,7 @@ impl<B: Buffer> PeekableBuffer<B> {
         let value = if self.backlog.is_empty() {
             try!(self.source.read_char())
         } else {
-            self.backlog.remove(0).unwrap()
+            self.backlog.remove(0)
         };
         Ok(value)
     }

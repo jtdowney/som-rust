@@ -1,5 +1,5 @@
 use compiler::{PeekableBuffer, Token};
-use std::io::IoResult;
+use std::old_io::IoResult;
 
 fn is_operator(c: char) -> bool {
     match c {
@@ -238,7 +238,7 @@ impl<B: Buffer> Lexer<B> {
         }).unwrap_or(false);
 
         if saw_operator {
-            let mut text = String::from_chars(&[c]);
+            let mut text = c.to_string();
             loop {
                 if self.buffer.is_eof() {
                     break;

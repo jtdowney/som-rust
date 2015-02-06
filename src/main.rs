@@ -1,6 +1,6 @@
 use compiler::Lexer;
-use std::io::{BufferedReader, IoErrorKind};
-use std::io::fs::File;
+use std::old_io::{BufferedReader, IoErrorKind};
+use std::old_io::fs::File;
 use std::os;
 
 mod compiler;
@@ -20,7 +20,7 @@ fn main() {
     loop {
         let token = lexer.read_token();
         match token {
-            Ok(t) => println!("{}", t),
+            Ok(t) => println!("{:?}", t),
             Err(ref e) if e.kind == IoErrorKind::EndOfFile => break,
             Err(e) => panic!("Error during tokenization: {}", e),
         }
