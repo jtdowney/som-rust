@@ -1,19 +1,25 @@
+#![feature(env)]
+#![feature(io)]
+#![feature(os)]
+#![feature(path)]
+#![feature(unicode)]
+
 use compiler::Lexer;
-use std::old_io::{BufferedReader, IoErrorKind};
+use std::env;
 use std::old_io::fs::File;
-use std::os;
+use std::old_io::{BufferedReader, IoErrorKind};
 
 mod compiler;
 
 #[allow(dead_code)]
 fn main() {
-    let args = os::args();
-    let file_name = match args.get(1) {
+    let mut args = env::args();
+    let file_name = match args.nth(1).and_then(|s| s.into_string().ok()) {
         Some(v) => v,
         None => panic!("Must provide file to tokenize"),
     };
 
-    println!("Tokenizing {}", file_name);
+    println!("Tokenizing {:?}", file_name);
     let file = File::open(&Path::new(file_name)).unwrap();
     let reader = BufferedReader::new(file);
     let mut lexer = Lexer::new(reader);
