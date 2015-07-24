@@ -1,29 +1,30 @@
 #[derive(Debug, PartialEq)]
-pub enum Token {
+#[allow(dead_code)]
+pub enum Symbol {
     And,
     Assign,
     At,
     Colon,
     Comma,
     Divide,
-    Double(f64),
+    Double,
     EndBlock,
     EndTerm,
     Equal,
     Exit,
-    Identifier(String),
-    Integer(i64),
-    Keyword(String),
-    KeywordSequence(String),
+    Identifier,
+    Integer,
+    Keyword,
+    KeywordSequence,
     Less,
     Minus,
     Modulus,
     More,
     NewBlock,
     NewTerm,
-    None(char),
+    None,
     Not,
-    OperatorSequence(String),
+    OperatorSequence,
     Or,
     Percent,
     Period,
@@ -32,5 +33,14 @@ pub enum Token {
     Primitive,
     Separator,
     Star,
-    String(String),
+    String,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Token(pub Symbol, pub Option<String>);
+
+impl From<Symbol> for Token {
+    fn from(symbol: Symbol) -> Token {
+        Token(symbol, None)
+    }
 }

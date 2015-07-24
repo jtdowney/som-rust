@@ -1,5 +1,8 @@
-use compiler::{PeekableBuffer, Token};
-use std::old_io::IoResult;
+use compiler::{Symbol, Token};
+use std::ascii::AsciiExt;
+use std::io;
+use std::io::{BufRead};
+use util::PeekableBuffer;
 
 fn is_operator(c: char) -> bool {
     match c {
@@ -8,565 +11,442 @@ fn is_operator(c: char) -> bool {
     }
 }
 
-pub struct Lexer<B: Buffer> {
-    buffer: PeekableBuffer<B>,
+fn is_identifier(c: char) -> bool {
+    c.is_ascii() && (c.is_alphanumeric() || c == '_')
 }
 
-impl<B: Buffer> Lexer<B> {
-    pub fn new(buffer: B) -> Lexer<B> {
-        Lexer { buffer: PeekableBuffer::new(buffer) }
+#[derive(Debug)]
+enum Error {
+    IoError(io::Error),
+    End,
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
+    }
+}
+
+pub struct Lexer<R: BufRead> {
+    buffer: PeekableBuffer<R>,
+    token_queue: Vec<Token>,
+}
+
+impl<R: BufRead> Iterator for Lexer<R> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Token> {
+        match self.read_token() {
+            Ok(t) => Some(t),
+            Err(_) => None
+        }
+    }
+}
+
+impl<R: BufRead> Lexer<R> {
+    pub fn new(reader: R) -> Lexer<R> {
+        Lexer {
+            buffer: PeekableBuffer::new(reader),
+            token_queue: Vec::new(),
+        }
     }
 
-    pub fn read_token(&mut self) -> IoResult<Token> {
-        loop {
-            try!(self.skip_whitespace());
-            try!(self.skip_comment());
+    fn read_token(&mut self) -> Result<Token, Error> {
+        if !self.token_queue.is_empty() {
+            return Ok(self.token_queue.pop().unwrap());
+        }
 
-            let c = try!(self.buffer.peek_char());
-            if c.is_whitespace() || c == '"' {
+        loop {
+            self.skip_whitespace();
+            self.skip_comments();
+
+            if self.buffer.peek().map_or(false, |c| c.is_whitespace()) {
                 continue;
             } else {
                 break;
             }
         }
 
-        let c = try!(self.buffer.peek_char());
-        match c {
-            '[' => self.tokenize_token(Token::NewBlock),
-            ']' => self.tokenize_token(Token::EndBlock),
-            '(' => self.tokenize_token(Token::NewTerm),
-            ')' => self.tokenize_token(Token::EndTerm),
-            '#' => self.tokenize_token(Token::Pound),
-            '^' => self.tokenize_token(Token::Exit),
-            '.' => self.tokenize_token(Token::Period),
-            '\'' => self.tokenize_string(),
-            '0'...'9' => self.tokenize_number(),
-            ':' => self.tokenize_colon(),
-            '-' => self.tokenize_minus(),
-            'a'...'z' | 'A'...'Z' => self.tokenize_identifier(),
-            _ => {
-                if is_operator(c) {
-                    self.tokenize_operator()
-                } else {
-                    self.tokenize_token(Token::None(c))
-                }
-            }
-        }
-    }
+        let c = match self.buffer.peek() {
+            Some(c) => c,
+            None => return Err(Error::End),
+        };
 
-    fn skip_whitespace(&mut self) -> IoResult<()> {
-        loop {
-            let c = try!(self.buffer.peek_char());
-            if c.is_whitespace() {
-                try!(self.buffer.consume());
-            } else {
-                break;
-            }
-        }
-        Ok(())
-    }
+        let token = match c {
+            '[' => self.read_symbol(Symbol::NewBlock),
+            ']' => self.read_symbol(Symbol::EndBlock),
+            '(' => self.read_symbol(Symbol::NewTerm),
+            ')' => self.read_symbol(Symbol::EndTerm),
+            '#' => self.read_symbol(Symbol::Pound),
+            '^' => self.read_symbol(Symbol::Exit),
+            '.' => self.read_symbol(Symbol::Period),
+            '-' => self.read_minus(),
+            ':' => self.read_colon(),
+            'a'...'z' | 'A'...'Z' => self.read_identifier(),
+            '0'...'9' => self.read_number(),
+            '\'' => self.read_string(),
+            c if is_operator(c) => self.read_operator(),
+            c  => panic!("do not understand: {:?}", c)
+        };
 
-    fn skip_comment(&mut self) -> IoResult<()> {
-        if self.buffer.peek_char() != Ok('"') {
-            return Ok(());
-        }
-
-        try!(self.buffer.consume());
-        loop {
-            if self.buffer.read_char() == Ok('"') {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn tokenize_token(&mut self, token: Token) -> IoResult<Token> {
-        try!(self.buffer.consume());
         Ok(token)
     }
 
-    fn tokenize_colon(&mut self) -> IoResult<Token> {
-        try!(self.buffer.consume());
-        if self.buffer.peek_char() == Ok('=') {
-            self.tokenize_token(Token::Assign)
-        } else {
-            Ok(Token::Colon)
-        }
-    }
-
-    fn tokenize_minus(&mut self) -> IoResult<Token> {
-        try!(self.buffer.consume());
-        if self.buffer.peek_char() == Ok('-') && self.buffer.peek_peek_char() == Ok('-') {
-            loop {
-                if self.buffer.read_char() != Ok('-') {
-                    break;
-                }
-            }
-            Ok(Token::Separator)
-        } else {
-            Ok(Token::Minus)
-        }
-    }
-
-    fn tokenize_identifier(&mut self) -> IoResult<Token> {
-        let mut text = String::new();
-
+    fn skip_whitespace(&mut self) {
         loop {
-            if self.buffer.is_eof() {
+            match self.buffer.peek() {
+                Some(c) if c.is_whitespace() => self.buffer.consume(),
+                _ => break
+            }
+        }
+    }
+
+    fn skip_comments(&mut self) {
+        if self.buffer.peek() != Some('"') {
+            return;
+        }
+
+        self.buffer.consume();
+        loop {
+            if self.buffer.next() == Some('"') {
                 break;
             }
+        }
+    }
 
-            let c = try!(self.buffer.peek_char());
-            match c {
-                'a'...'z' | 'A'...'Z' | '0'...'9' | '_' => {
+    fn read_symbol(&mut self, symbol: Symbol) -> Token {
+        self.buffer.consume();
+        From::from(symbol)
+    }
+
+    fn read_operator(&mut self) -> Token {
+        let c = self.buffer.next().unwrap();
+        match c {
+           '~' => From::from(Symbol::Not),
+           '&' => From::from(Symbol::And),
+           '|' => From::from(Symbol::Or),
+           '*' => From::from(Symbol::Star),
+           '/' => From::from(Symbol::Divide),
+           '\\' => From::from(Symbol::Modulus),
+           '+' => From::from(Symbol::Plus),
+           '=' => From::from(Symbol::Equal),
+           '>' => From::from(Symbol::More),
+           '<' => From::from(Symbol::Less),
+           ',' => From::from(Symbol::Comma),
+           '@' => From::from(Symbol::At),
+           '%' => From::from(Symbol::Percent),
+           _ => unreachable!(),
+       }
+    }
+
+    fn read_colon(&mut self) -> Token {
+        self.buffer.consume();
+        if self.buffer.peek() == Some('=') {
+            self.buffer.consume();
+            From::from(Symbol::Assign)
+        } else {
+            From::from(Symbol::Colon)
+        }
+    }
+
+    fn read_identifier(&mut self) -> Token {
+        let mut text = String::new();
+        loop {
+            match self.buffer.peek() {
+                Some(c) if is_identifier(c) => {
                     text.push(c);
-                    try!(self.buffer.consume());
+                    self.buffer.consume();
                 }
                 _ => break,
             }
         }
 
-        if self.buffer.peek_char() == Ok(':') {
-            try!(self.buffer.consume());
+        if self.buffer.peek() == Some(':') {
+            self.buffer.consume();
             text.push(':');
 
-            let saw_sequence = self.buffer.peek_char().ok().and_then(|c| {
-                Some(c.is_alphabetic())
+            let saw_sequence = self.buffer.peek().and_then(|c| {
+                Some(c.is_alphabetic() && c.is_ascii())
             }).unwrap_or(false);
             if saw_sequence {
                 loop {
-                    if self.buffer.is_eof() {
-                        break;
-                    }
-
-                    let c = try!(self.buffer.peek_char());
-                    match c {
-                        'a'...'z' | 'A'...'Z' | ':' => {
+                    match self.buffer.peek() {
+                        Some(c @ 'a'...'z') | Some(c @ 'A'...'Z') | Some(c @ '0'...'9') | Some(c @ ':') => {
                             text.push(c);
-                            try!(self.buffer.consume());
+                            self.buffer.consume();
                         }
                         _ => break,
                     }
                 }
 
-                Ok(Token::KeywordSequence(text))
+                Token(Symbol::KeywordSequence, Some(text))
             } else {
-                Ok(Token::Keyword(text))
+                Token(Symbol::Keyword, Some(text))
             }
         } else if text == "primitive" {
-            Ok(Token::Primitive)
+            From::from(Symbol::Primitive)
         } else {
-            Ok(Token::Identifier(text))
+            Token(Symbol::Identifier, Some(text))
         }
     }
 
-    fn tokenize_number(&mut self) -> IoResult<Token> {
+    fn read_string(&mut self) -> Token {
+        let mut text = String::new();
+
+        self.buffer.consume();
+        loop {
+            match self.buffer.next() {
+                Some('\'') => break,
+                Some(c) => text.push(c),
+                None => break
+            }
+        }
+
+        Token(Symbol::String, Some(text))
+    }
+
+    fn read_number(&mut self) -> Token {
         let mut text = String::new();
 
         loop {
-            if self.buffer.is_eof() {
-                break;
-            }
-
-            let c = try!(self.buffer.peek_char());
-            match c {
-                '0'...'9' => {
+            match self.buffer.peek() {
+                Some(c @ '0'...'9') => {
                     text.push(c);
-                    try!(self.buffer.consume());
+                    self.buffer.consume();
                 }
                 _ => break,
             }
         }
 
-        let saw_decimal = self.buffer.peek_char().ok().and_then(|c| {
-            if c == '.' {
-                self.buffer.peek_peek_char().ok()
-            } else {
-                None
-            }
-        }).and_then(|c| {
-            Some(c.is_digit(10))
-        }).unwrap_or(false);
-
+        let saw_decimal = self.buffer.peek().map_or(false, |c| c == '.');
         if saw_decimal {
-            try!(self.buffer.consume());
-            text.push('.');
-            loop {
-                if self.buffer.is_eof() {
-                    break;
-                }
+            self.buffer.consume();
+            let saw_digit = self.buffer.peek().map_or(false, |c| c.is_digit(10));
+            if saw_digit {
+                text.push('.');
 
-                let c = try!(self.buffer.peek_char());
-                match c {
-                    '0'...'9' => {
-                        text.push(c);
-                        try!(self.buffer.consume());
+                loop {
+                    match self.buffer.peek() {
+                        Some(c @ '0'...'9') => {
+                            text.push(c);
+                            self.buffer.consume();
+                        }
+                        _ => break,
                     }
-                    _ => break,
                 }
-            }
 
-            let value = text.parse().unwrap();
-            Ok(Token::Double(value))
-        } else {
-            let value = text.parse().unwrap();
-            Ok(Token::Integer(value))
-        }
-    }
-
-    fn tokenize_string(&mut self) -> IoResult<Token> {
-        let mut text = String::new();
-
-        try!(self.buffer.consume());
-        loop {
-            let c = try!(self.buffer.read_char());
-            if c == '\'' {
-                break;
+                Token(Symbol::Double, Some(text))
             } else {
-                text.push(c);
+                self.token_queue.push(From::from(Symbol::Period));
+                Token(Symbol::Integer, Some(text))
             }
+        } else {
+            Token(Symbol::Integer, Some(text))
         }
-
-        Ok(Token::String(text))
     }
 
-    fn tokenize_operator(&mut self) -> IoResult<Token> {
-        let c = try!(self.buffer.read_char());
-        let saw_operator = self.buffer.peek_char().ok().and_then(|c| {
-            Some(is_operator(c))
-        }).unwrap_or(false);
+    fn read_minus(&mut self) -> Token {
+        self.buffer.consume();
+        let mut count = 1;
 
-        if saw_operator {
-            let mut text = c.to_string();
-            loop {
-                if self.buffer.is_eof() {
-                    break;
+        loop {
+            if self.buffer.peek() == Some('-') {
+                self.buffer.consume();
+                count += 1;
+
+                if count == 4 {
+                    return From::from(Symbol::Separator)
                 }
-
-                let c = try!(self.buffer.peek_char());
-                if is_operator(c) {
-                    text.push(c);
-                    try!(self.buffer.consume());
-                } else {
-                    break;
-                }
-            }
-
-            Ok(Token::OperatorSequence(text))
-        } else {
-            match c {
-                '~' => Ok(Token::Not),
-                '&' => Ok(Token::And),
-                '|' => Ok(Token::Or),
-                '*' => Ok(Token::Star),
-                '/' => Ok(Token::Divide),
-                '\\' => Ok(Token::Modulus),
-                '+' => Ok(Token::Plus),
-                '=' => Ok(Token::Equal),
-                '>' => Ok(Token::More),
-                '<' => Ok(Token::Less),
-                ',' => Ok(Token::Comma),
-                '@' => Ok(Token::At),
-                '%' => Ok(Token::Percent),
-                _ => panic!("Could not identify operator: {}", c)
+            } else {
+                break;
             }
         }
+
+        count -= 1;
+        for _ in (0..count) {
+            self.token_queue.push(From::from(Symbol::Minus))
+        }
+
+        From::from(Symbol::Minus)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use compiler::Token;
     use super::Lexer;
+    use compiler::{Symbol, Token};
 
     #[test]
-    fn tokenization_skips_whitespace() {
-        let source = "\n Hello".as_bytes();
+    fn test_skipping_whitespace() {
+        let source = "\n Hello \n Test".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Test".to_string())));
     }
 
     #[test]
-    fn tokenization_skips_comments() {
-        let source = "\"comment\" Hello".as_bytes();
+    fn test_skipping_comments() {
+        let source = "\"Test\" Hello \"123\" Test".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Test".to_string())));
     }
 
     #[test]
-    fn tokenizes_identifier() {
+    fn test_identifier() {
         let source = "Hello".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
     }
 
     #[test]
-    fn tokenizes_keyword() {
+    fn test_keyword() {
         let source = "foo:".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Keyword("foo:".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Keyword, Some("foo:".to_string())));
     }
 
     #[test]
-    fn tokenizes_two_keyword_sequence() {
+    fn test_two_keyword_sequence() {
         let source = "foo:bar:".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::KeywordSequence("foo:bar:".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::KeywordSequence, Some("foo:bar:".to_string())));
     }
 
     #[test]
-    fn tokenizes_three_keyword_sequence() {
+    fn test_three_keyword_sequence() {
         let source = "foo:bar:baz:".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::KeywordSequence("foo:bar:baz:".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::KeywordSequence, Some("foo:bar:baz:".to_string())));
     }
 
     #[test]
-    fn tokenizes_primitive() {
+    fn test_primitive() {
         let source = "primitive".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Primitive));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Primitive, None));
     }
 
     #[test]
-    fn tokenizes_colon() {
-        let source = ":".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Colon));
-    }
-
-    #[test]
-    fn tokenizes_pound() {
-        let source = "#".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Pound));
-    }
-
-    #[test]
-    fn tokenizes_exit() {
-        let source = "^".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Exit));
-    }
-
-    #[test]
-    fn tokenizes_period() {
-        let source = ".".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Period));
-    }
-
-    #[test]
-    fn tokenizes_minus() {
+    fn test_minus() {
         let source = "-".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Minus));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
     }
 
     #[test]
-    fn tokenizes_separator() {
-        let source = "----".as_bytes();
+    fn test_two_minus() {
+        let source = "--".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Separator));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
     }
 
     #[test]
-    fn tokenizes_long_separator() {
-        let source = "--------".as_bytes();
+    fn test_three_minus() {
+        let source = "---".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Separator));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
     }
 
     #[test]
-    fn tokenizes_new_term() {
-        let source = "(".as_bytes();
+    fn test_separator() {
+        let source = "-----".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::NewTerm));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Separator, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
     }
 
     #[test]
-    fn tokenizes_end_term() {
-        let source = ")".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::EndTerm));
-    }
-
-    #[test]
-    fn tokenizes_new_block() {
-        let source = "[".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::NewBlock));
-    }
-
-    #[test]
-    fn tokenizes_end_block() {
-        let source = "]".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::EndBlock));
-    }
-
-    #[test]
-    fn tokenizes_none() {
-        let source = "\u{00FE}".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::None('\u{00FE}')));
-    }
-
-    #[test]
-    fn tokenizes_string() {
-        let source = "'Hello'".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::String("Hello".to_string())));
-    }
-
-    #[test]
-    fn tokenizes_integer() {
+    fn test_integer() {
         let source = "1".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Integer(1)));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Integer, Some("1".to_string())));
     }
 
     #[test]
-    fn tokenizes_integer_and_period() {
+    fn test_integer_and_period() {
         let source = "1.".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Integer(1)));
-        assert_eq!(lexer.read_token(), Ok(Token::Period));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Integer, Some("1".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Period, None));
     }
 
     #[test]
-    fn tokenizes_double() {
+    fn test_double() {
         let source = "3.14".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Double(3.14)));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Double, Some("3.14".to_string())));
     }
 
     #[test]
-    fn tokenizes_assignment() {
+    fn test_colon() {
+        let source = ":".as_bytes();
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Colon, None));
+    }
+
+    #[test]
+    fn test_assignment() {
         let source = "foo := 'Hello'".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("foo".to_string())));
-        assert_eq!(lexer.read_token(), Ok(Token::Assign));
-        assert_eq!(lexer.read_token(), Ok(Token::String("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("foo".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Assign, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::String, Some("Hello".to_string())));
     }
 
     #[test]
-    fn tokenizes_operator_sequence() {
-        let source = ">=".as_bytes();
+    fn test_simple_symbols() {
+        let source = "[]()#^.".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::OperatorSequence(">=".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::NewBlock, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::EndBlock, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::NewTerm, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::EndTerm, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Pound, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Exit, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Period, None));
     }
 
     #[test]
-    fn tokenizes_not() {
-        let source = "~".as_bytes();
+    fn test_simple_operators() {
+        let source = "~&|*/\\+=<>,@%".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Not));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Not, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::And, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Or, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Star, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Divide, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Modulus, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Plus, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Equal, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Less, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::More, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Comma, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::At, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Percent, None));
     }
 
     #[test]
-    fn tokenizes_and() {
-        let source = "&".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::And));
-    }
-
-    #[test]
-    fn tokenizes_or() {
-        let source = "|".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Or));
-    }
-
-    #[test]
-    fn tokenizes_star() {
-        let source = "*".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Star));
-    }
-
-    #[test]
-    fn tokenizes_div() {
-        let source = "/".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Divide));
-    }
-
-    #[test]
-    fn tokenizes_mod() {
-        let source = "\\".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Modulus));
-    }
-
-    #[test]
-    fn tokenizes_plus() {
-        let source = "+".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Plus));
-    }
-
-    #[test]
-    fn tokenizes_equal() {
-        let source = "=".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Equal));
-    }
-
-    #[test]
-    fn tokenizes_more() {
-        let source = ">".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::More));
-    }
-
-    #[test]
-    fn tokenizes_less() {
-        let source = "<".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Less));
-    }
-
-    #[test]
-    fn tokenizes_comma() {
-        let source = ",".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Comma));
-    }
-
-    #[test]
-    fn tokenizes_at() {
-        let source = "@".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::At));
-    }
-
-    #[test]
-    fn tokenizes_percent() {
-        let source = "%".as_bytes();
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Percent));
-    }
-
-    #[test]
-    fn tokenizes_simple_file() {
+    fn test_lexer() {
         let source = "
         Hello = (
             \"The 'run' method is called when initializing the system\"
-            run = ('Hello, World from SOM' println )
+            run = ('Hello, World from SOM' println)
         )
         ".as_bytes();
         let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("Hello".to_string())));
-        assert_eq!(lexer.read_token(), Ok(Token::Equal));
-        assert_eq!(lexer.read_token(), Ok(Token::NewTerm));
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("run".to_string())));
-        assert_eq!(lexer.read_token(), Ok(Token::Equal));
-        assert_eq!(lexer.read_token(), Ok(Token::NewTerm));
-        assert_eq!(lexer.read_token(), Ok(Token::String("Hello, World from SOM".to_string())));
-        assert_eq!(lexer.read_token(), Ok(Token::Identifier("println".to_string())));
-        assert_eq!(lexer.read_token(), Ok(Token::EndTerm));
-        assert_eq!(lexer.read_token(), Ok(Token::EndTerm));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Equal, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::NewTerm, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some(("run".to_string()))));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Equal, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::NewTerm, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::String, Some("Hello, World from SOM".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("println".to_string())));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::EndTerm, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::EndTerm, None));
     }
 }
