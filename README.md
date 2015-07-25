@@ -1,5 +1,7 @@
 # SOM in Rust
 
+[![Build Status](https://travis-ci.org/jtdowney/som-rust.svg?branch=master)](https://travis-ci.org/jtdowney/som-rust)
+
 My goal is to fully implement [SOM](http://som-st.github.io/) using [Rust](http://www.rust-lang.org/).
 
 ## Requirements
