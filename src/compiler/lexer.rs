@@ -1,5 +1,6 @@
 use compiler::{Symbol, Token};
 use std::ascii::AsciiExt;
+use std::collections::VecDeque;
 use std::io;
 use std::io::{BufRead};
 use util::PeekableBuffer;
@@ -29,7 +30,7 @@ impl From<io::Error> for Error {
 
 pub struct Lexer<R: BufRead> {
     buffer: PeekableBuffer<R>,
-    token_queue: Vec<Token>,
+    token_queue: VecDeque<Token>,
 }
 
 impl<R: BufRead> Iterator for Lexer<R> {
@@ -47,13 +48,13 @@ impl<R: BufRead> Lexer<R> {
     pub fn new(reader: R) -> Lexer<R> {
         Lexer {
             buffer: PeekableBuffer::new(reader),
-            token_queue: Vec::new(),
+            token_queue: VecDeque::new(),
         }
     }
 
     fn read_token(&mut self) -> Result<Token, Error> {
         if !self.token_queue.is_empty() {
-            return Ok(self.token_queue.pop().unwrap());
+            return Ok(self.token_queue.pop_front().unwrap());
         }
 
         loop {
@@ -237,7 +238,7 @@ impl<R: BufRead> Lexer<R> {
 
                 Token(Symbol::Double, Some(text))
             } else {
-                self.token_queue.push(From::from(Symbol::Period));
+                self.token_queue.push_back(From::from(Symbol::Period));
                 Token(Symbol::Integer, Some(text))
             }
         } else {
@@ -264,7 +265,7 @@ impl<R: BufRead> Lexer<R> {
 
         count -= 1;
         for _ in (0..count) {
-            self.token_queue.push(From::from(Symbol::Minus))
+            self.token_queue.push_back(From::from(Symbol::Minus))
         }
 
         From::from(Symbol::Minus)
