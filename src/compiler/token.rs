@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum Symbol {
     And,
@@ -36,7 +36,7 @@ pub enum Symbol {
     String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token(pub Symbol, pub Option<String>);
 
 impl From<Symbol> for Token {

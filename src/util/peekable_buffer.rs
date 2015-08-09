@@ -1,18 +1,23 @@
 use std::io::{BufRead, Error};
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Location(pub usize, pub usize);
+
 pub struct PeekableBuffer<R: BufRead> {
     source: R,
     buffer: String,
-    pos: usize,
-    peeked: Option<char>,
+    line: usize,
+    position: usize,
+    peeked: Option<(char, Location)>,
 }
 
 impl<R: BufRead> PeekableBuffer<R> {
     pub fn new(source: R) -> PeekableBuffer<R> {
         PeekableBuffer {
             source: source,
-            buffer: String::new(),
-            pos: 0,
+            buffer: String::with_capacity(256),
+            line: 0,
+            position: 0,
             peeked: None,
         }
     }
@@ -23,10 +28,11 @@ impl<R: BufRead> PeekableBuffer<R> {
         }
 
         if self.peeked.is_none() {
-            self.peeked = self.next();
+            let location = self.location();
+            self.peeked = self.next().map(|c| (c, location));
         }
 
-        self.peeked
+        self.peeked.map(|c| c.0)
     }
 
     pub fn consume(&mut self) {
@@ -37,9 +43,20 @@ impl<R: BufRead> PeekableBuffer<R> {
         }
     }
 
+    pub fn location(&self) -> Location {
+        if let Some((_, location)) = self.peeked {
+            location
+        } else {
+            Location(self.line, self.position+1)
+        }
+    }
+
     #[inline]
     fn fill_buffer(&mut self) -> Option<Error> {
-        if self.pos >= self.buffer.len() {
+        if self.position >= self.buffer.len() {
+            self.line += 1;
+            self.position = 0;
+            self.buffer.clear();
             self.source.read_line(&mut self.buffer).err()
         } else {
             None
@@ -55,12 +72,12 @@ impl<R: BufRead> Iterator for PeekableBuffer<R> {
             return None;
         }
 
-        if let Some(c) = self.peeked {
+        if let Some((c, _)) = self.peeked {
             self.peeked = None;
             Some(c)
         } else {
-            let value = self.buffer.chars().nth(self.pos);
-            self.pos += 1;
+            let value = self.buffer.chars().nth(self.position);
+            self.position += 1;
             value
         }
     }
@@ -68,7 +85,17 @@ impl<R: BufRead> Iterator for PeekableBuffer<R> {
 
 #[cfg(test)]
 mod test {
-    use super::PeekableBuffer;
+    use super::{Location, PeekableBuffer};
+
+    #[test]
+    fn test_location() {
+        let source = "a\nbc".as_bytes();
+        let mut buffer = PeekableBuffer::new(source);
+        buffer.next();
+        buffer.next();
+        buffer.next();
+        assert_eq!(buffer.location(), Location(2, 2))
+    }
 
     #[test]
     fn test_next_reads_values() {
