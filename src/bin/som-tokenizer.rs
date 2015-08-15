@@ -1,10 +1,9 @@
-use compiler::Lexer;
+extern crate som;
+
+use som::compiler::Lexer;
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
-
-mod compiler;
-mod util;
 
 #[allow(dead_code)]
 fn main() {
