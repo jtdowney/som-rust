@@ -1,5 +1,4 @@
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum Symbol {
     And,
     Assign,

@@ -1,0 +1,61 @@
+Class {
+    name: "Echo",
+    superclass: "Object",
+    instance_methods: {
+        "run:": Native {
+            name: "run:",
+            parameters: [
+                "args"
+            ],
+            locals: [],
+            body: [
+                KeywordMessage {
+                    message: "from:to:do:",
+                    receiver: Variable(
+                        "args"
+                    ),
+                    parameters: [
+                        LiteralInteger(
+                            2
+                        ),
+                        UnaryMessage {
+                            message: "length",
+                            receiver: Variable(
+                                "args"
+                            )
+                        },
+                        Block {
+                            parameters: [
+                                "arg"
+                            ],
+                            locals: [],
+                            body: [
+                                UnaryMessage {
+                                    message: "print",
+                                    receiver: Variable(
+                                        "arg"
+                                    )
+                                },
+                                UnaryMessage {
+                                    message: "print",
+                                    receiver: LiteralString(
+                                        " "
+                                    )
+                                }
+                            ]
+                        }
+                    ]
+                },
+                UnaryMessage {
+                    message: "println",
+                    receiver: LiteralString(
+                        ""
+                    )
+                }
+            ]
+        }
+    },
+    instance_variables: [],
+    class_methods: {},
+    class_variables: []
+}
