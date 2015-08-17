@@ -2,3 +2,15 @@
 name = "som"
 version = "0.1.0"
 authors = ["John Downey <jdowney@gmail.com>"]
+
+[[bin]]
+name = "som-parser"
+test = false
+
+[[bin]]
+name = "som-tokenizer"
+test = false
+
+[lib]
+doc = false
+doctest = false
