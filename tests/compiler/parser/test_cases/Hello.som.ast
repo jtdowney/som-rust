@@ -1,0 +1,22 @@
+Class {
+    name: "Hello",
+    superclass: "Object",
+    instance_methods: {
+        "run": Native {
+            name: "run",
+            parameters: [],
+            locals: [],
+            body: [
+                UnaryMessage {
+                    message: "println",
+                    receiver: LiteralString(
+                        "Hello, World from SOM"
+                    )
+                }
+            ]
+        }
+    },
+    instance_variables: [],
+    class_methods: {},
+    class_variables: []
+}

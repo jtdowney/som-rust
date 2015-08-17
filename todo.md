@@ -1,0 +1,2 @@
+- parser clones a lot of values
+- json benchmark is slow to parse

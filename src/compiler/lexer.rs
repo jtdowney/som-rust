@@ -24,7 +24,7 @@ enum Error {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Item(Token, Location);
+pub struct Item(pub Token, pub Location);
 
 impl PartialEq<Token> for Item {
     fn eq(&self, other: &Token) -> bool {
@@ -134,22 +134,39 @@ impl<R: BufRead> Lexer<R> {
 
     fn read_operator(&mut self) -> Token {
         let c = self.buffer.next().unwrap();
-        match c {
-           '~' => From::from(Symbol::Not),
-           '&' => From::from(Symbol::And),
-           '|' => From::from(Symbol::Or),
-           '*' => From::from(Symbol::Star),
-           '/' => From::from(Symbol::Divide),
-           '\\' => From::from(Symbol::Modulus),
-           '+' => From::from(Symbol::Plus),
-           '=' => From::from(Symbol::Equal),
-           '>' => From::from(Symbol::More),
-           '<' => From::from(Symbol::Less),
-           ',' => From::from(Symbol::Comma),
-           '@' => From::from(Symbol::At),
-           '%' => From::from(Symbol::Percent),
-           _ => unreachable!(),
-       }
+        let mut sequence = String::new();
+        sequence.push(c);
+
+        loop {
+            match self.buffer.peek() {
+                Some(ch) if is_operator(ch) => {
+                    self.buffer.consume();
+                    sequence.push(ch);
+                }
+                _ => break,
+            }
+        }
+
+        if sequence.len() > 1 {
+            Token(Symbol::OperatorSequence, Some(sequence))
+        } else {
+            match c {
+                '~' => From::from(Symbol::Not),
+                '&' => From::from(Symbol::And),
+                '|' => From::from(Symbol::Or),
+                '*' => From::from(Symbol::Star),
+                '/' => From::from(Symbol::Divide),
+                '\\' => From::from(Symbol::Modulus),
+                '+' => From::from(Symbol::Plus),
+                '=' => From::from(Symbol::Equal),
+                '>' => From::from(Symbol::More),
+                '<' => From::from(Symbol::Less),
+                ',' => From::from(Symbol::Comma),
+                '@' => From::from(Symbol::At),
+                '%' => From::from(Symbol::Percent),
+                _ => unreachable!(),
+            }
+        }
     }
 
     fn read_colon(&mut self) -> Token {
@@ -268,28 +285,29 @@ impl<R: BufRead> Lexer<R> {
             if self.buffer.peek() == Some('-') {
                 self.buffer.consume();
                 count += 1;
-
-                if count == 4 {
-                    return From::from(Symbol::Separator)
-                }
             } else {
                 break;
             }
         }
 
-        count -= 1;
-        for _ in (0..count) {
-            self.queue.push_back(Item(Token(Symbol::Minus, None), location))
-        }
+        if count >= 4 {
+            From::from(Symbol::Separator)
+        } else {
+            count -= 1;
+            for _ in (0..count) {
+                self.queue.push_back(Item(Token(Symbol::Minus, None), location))
+            }
 
-        From::from(Symbol::Minus)
+            From::from(Symbol::Minus)
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Lexer;
+    use super::{Item, Lexer};
     use compiler::{Symbol, Token};
+    use util::peekable_buffer::Location;
 
     #[test]
     fn test_skipping_whitespace() {
@@ -371,7 +389,14 @@ mod test {
         let source = "-----".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Separator, None));
-        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
+    }
+
+    #[test]
+    fn test_long_separator() {
+        let source = "----------------\ntest".as_bytes();
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Separator, None));
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("test".to_string())));
     }
 
     #[test]
@@ -427,7 +452,7 @@ mod test {
 
     #[test]
     fn test_simple_operators() {
-        let source = "~&|*/\\+=<>,@%".as_bytes();
+        let source = "~ & | * / \\ + = < > , @ %".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Not, None));
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::And, None));
@@ -442,6 +467,21 @@ mod test {
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Comma, None));
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::At, None));
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Percent, None));
+    }
+
+    #[test]
+    fn test_operator_sequence() {
+        let source = "<=".as_bytes();
+        let mut lexer = Lexer::new(source);
+        assert_eq!(lexer.read_token().unwrap(), Token(Symbol::OperatorSequence, Some("<=".to_string())));
+    }
+
+    #[test]
+    fn test_location() {
+        let source = " \n  World".as_bytes();
+        let mut lexer = Lexer::new(source);
+        let Item(_, location) = lexer.read_token().unwrap();
+        assert_eq!(location, Location(2, 3));
     }
 
     #[test]
