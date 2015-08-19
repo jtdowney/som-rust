@@ -6,7 +6,7 @@ My goal is to fully implement [SOM](http://som-st.github.io/) using [Rust](http:
 
 ## Requirements
 
-* [rust 1.1](http://www.rust-lang.org/install.html)
+* [rust >= 1.0.0](http://www.rust-lang.org/install.html)
 * [cargo](https://github.com/rust-lang/cargo)
 
 ## Running
