@@ -12,5 +12,6 @@ name = "som-tokenizer"
 test = false
 
 [lib]
+name = "som"
 doc = false
 doctest = false
