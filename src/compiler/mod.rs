@@ -3,6 +3,6 @@ pub use self::lexer::Lexer;
 pub use self::parser::Parser;
 
 mod ast;
-pub mod lexer;
+mod lexer;
 mod parser;
 mod token;
