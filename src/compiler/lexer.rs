@@ -310,7 +310,7 @@ mod test {
     use util::peekable_buffer::Location;
 
     #[test]
-    fn test_skipping_whitespace() {
+    fn skipping_whitespace() {
         let source = "\n Hello \n Test".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
@@ -318,7 +318,7 @@ mod test {
     }
 
     #[test]
-    fn test_skipping_comments() {
+    fn skipping_comments() {
         let source = "\"Test\" Hello \"123\" Test".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
@@ -326,49 +326,49 @@ mod test {
     }
 
     #[test]
-    fn test_identifier() {
+    fn identifier() {
         let source = "Hello".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("Hello".to_string())));
     }
 
     #[test]
-    fn test_keyword() {
+    fn keyword() {
         let source = "foo:".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Keyword, Some("foo:".to_string())));
     }
 
     #[test]
-    fn test_two_keyword_sequence() {
+    fn two_keyword_sequence() {
         let source = "foo:bar:".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::KeywordSequence, Some("foo:bar:".to_string())));
     }
 
     #[test]
-    fn test_three_keyword_sequence() {
+    fn three_keyword_sequence() {
         let source = "foo:bar:baz:".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::KeywordSequence, Some("foo:bar:baz:".to_string())));
     }
 
     #[test]
-    fn test_primitive() {
+    fn primitive() {
         let source = "primitive".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Primitive, None));
     }
 
     #[test]
-    fn test_minus() {
+    fn minus() {
         let source = "-".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
     }
 
     #[test]
-    fn test_two_minus() {
+    fn two_minus() {
         let source = "--".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
@@ -376,7 +376,7 @@ mod test {
     }
 
     #[test]
-    fn test_three_minus() {
+    fn three_minus() {
         let source = "---".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Minus, None));
@@ -385,14 +385,14 @@ mod test {
     }
 
     #[test]
-    fn test_separator() {
+    fn separator() {
         let source = "-----".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Separator, None));
     }
 
     #[test]
-    fn test_long_separator() {
+    fn long_separator() {
         let source = "----------------\ntest".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Separator, None));
@@ -400,14 +400,14 @@ mod test {
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         let source = "1".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Integer, Some("1".to_string())));
     }
 
     #[test]
-    fn test_integer_and_period() {
+    fn integer_and_period() {
         let source = "1.".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Integer, Some("1".to_string())));
@@ -415,21 +415,21 @@ mod test {
     }
 
     #[test]
-    fn test_double() {
+    fn double() {
         let source = "3.14".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Double, Some("3.14".to_string())));
     }
 
     #[test]
-    fn test_colon() {
+    fn colon() {
         let source = ":".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Colon, None));
     }
 
     #[test]
-    fn test_assignment() {
+    fn assignment() {
         let source = "foo := 'Hello'".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Identifier, Some("foo".to_string())));
@@ -438,7 +438,7 @@ mod test {
     }
 
     #[test]
-    fn test_simple_symbols() {
+    fn simple_symbols() {
         let source = "[]()#^.".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::NewBlock, None));
@@ -451,7 +451,7 @@ mod test {
     }
 
     #[test]
-    fn test_simple_operators() {
+    fn simple_operators() {
         let source = "~ & | * / \\ + = < > , @ %".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::Not, None));
@@ -470,14 +470,14 @@ mod test {
     }
 
     #[test]
-    fn test_operator_sequence() {
+    fn operator_sequence() {
         let source = "<=".as_bytes();
         let mut lexer = Lexer::new(source);
         assert_eq!(lexer.read_token().unwrap(), Token(Symbol::OperatorSequence, Some("<=".to_string())));
     }
 
     #[test]
-    fn test_location() {
+    fn location() {
         let source = " \n  World".as_bytes();
         let mut lexer = Lexer::new(source);
         let Item(_, location) = lexer.read_token().unwrap();
@@ -485,7 +485,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer() {
+    fn lexer() {
         let source = "
         Hello = (
             \"The 'run' method is called when initializing the system\"

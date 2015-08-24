@@ -571,7 +571,7 @@ mod test {
     use super::{Error, Parser};
 
     #[test]
-    fn test_parse_error() {
+    fn parse_error() {
         let source = "Hello".as_bytes();
         let mut parser = Parser::new(source, "test");
         let result = parser.expect(Symbol::Double);
@@ -584,7 +584,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_error_position_information() {
+    fn parse_error_position_information() {
         let source = " \n  World".as_bytes();
         let mut parser = Parser::new(source, "test");
         let result = parser.expect(Symbol::Double);
@@ -597,7 +597,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_method_primitive() {
+    fn parse_method_primitive() {
         let source = "hello = primitive".as_bytes();
         let mut parser = Parser::new(source, "test");
         let (_, method) = parser.parse_method().unwrap();
@@ -605,7 +605,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_assignment() {
+    fn parse_assignment() {
         let source = "a := 'test'".as_bytes();
         let mut parser = Parser::new(source, "test");
         let statements = parser.parse_block_body().unwrap();
@@ -617,7 +617,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_multiple_assignment() {
+    fn parse_multiple_assignment() {
         let source = "a := b := 'test'".as_bytes();
         let mut parser = Parser::new(source, "test");
         let statements = parser.parse_block_body().unwrap();
@@ -629,7 +629,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_body_evaluation() {
+    fn parse_body_evaluation() {
         let source = "'test' println".as_bytes();
         let mut parser = Parser::new(source, "test");
         let statements = parser.parse_block_body().unwrap();
@@ -641,7 +641,7 @@ mod test {
     }
 
     #[test]
-    fn test_nested_block_expression() {
+    fn nested_block_expression() {
         let source = "[ :arg | arg print. ' ' print ]".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -662,7 +662,7 @@ mod test {
     }
 
     #[test]
-    fn test_variable_expression() {
+    fn variable_expression() {
         let source = "a".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -670,7 +670,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_string_expression() {
+    fn literal_string_expression() {
         let source = "'test'".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -678,7 +678,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_nil_expression() {
+    fn literal_nil_expression() {
         let source = "nil".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -686,7 +686,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_boolean_expression() {
+    fn literal_boolean_expression() {
         let source = "true || false".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -698,7 +698,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_symbol_expression() {
+    fn literal_symbol_expression() {
         let source = "#test #'test-case' #run:with:".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -710,7 +710,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_integer_expression() {
+    fn literal_integer_expression() {
         let source = "1".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -718,7 +718,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_negative_integer_expression() {
+    fn literal_negative_integer_expression() {
         let source = "-1".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -726,7 +726,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_negative_double_expression() {
+    fn literal_negative_double_expression() {
         let source = "-3.14".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -734,7 +734,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_double_expression() {
+    fn literal_double_expression() {
         let source = "3.14".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -742,7 +742,7 @@ mod test {
     }
 
     #[test]
-    fn test_unary_message_expression() {
+    fn unary_message_expression() {
         let source = "1 println".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -753,7 +753,7 @@ mod test {
     }
 
     #[test]
-    fn test_multiple_unary_messages() {
+    fn multiple_unary_messages() {
         let source = "1 test println".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -767,7 +767,7 @@ mod test {
     }
 
     #[test]
-    fn test_keyword_message_expression() {
+    fn keyword_message_expression() {
         let source = "1 with: a and: b".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -782,7 +782,7 @@ mod test {
     }
 
     #[test]
-    fn test_complex_keyword_message_expression() {
+    fn complex_keyword_message_expression() {
         let source = "1 with: a length and: 1 + 2".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -805,7 +805,7 @@ mod test {
     }
 
     #[test]
-    fn test_binary_message_expression() {
+    fn binary_message_expression() {
         let source = "1 + 2".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -817,7 +817,7 @@ mod test {
     }
 
     #[test]
-    fn test_operator_sequence_expression() {
+    fn operator_sequence_expression() {
         let source = "1 <= 2".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -829,7 +829,7 @@ mod test {
     }
 
     #[test]
-    fn test_nested_terms() {
+    fn nested_terms() {
         let source = "1 + (2 - 1)".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -846,7 +846,7 @@ mod test {
     }
 
     #[test]
-    fn test_unary_message_binds_higher() {
+    fn unary_message_binds_higher() {
         let source = "1 test + 2".as_bytes();
         let mut parser = Parser::new(source, "test");
         let expression = parser.parse_expression().unwrap();
@@ -861,7 +861,7 @@ mod test {
     }
 
     #[test]
-    fn test_superclass_parsing() {
+    fn superclass_parsing() {
         let source = "Hello = Test ()".as_bytes();
         let mut parser = Parser::new(source, "test");
         let class = parser.parse_class().unwrap();
@@ -870,7 +870,7 @@ mod test {
     }
 
     #[test]
-    fn test_method_with_locals() {
+    fn method_with_locals() {
         let source = "
         test = ( |a b|
             a println
@@ -892,7 +892,7 @@ mod test {
     }
 
     #[test]
-    fn test_method_with_multiple_statements() {
+    fn method_with_multiple_statements() {
         let source = "
         test = ( |a b|
             a println.
@@ -919,7 +919,7 @@ mod test {
     }
 
     #[test]
-    fn test_method_with_parameters() {
+    fn method_with_parameters() {
         let source = "
         test: a with: b = (
             a println
@@ -941,7 +941,7 @@ mod test {
     }
 
     #[test]
-    fn test_method_with_exit() {
+    fn method_with_exit() {
         let source = "
         test = (
             ^ 1 + 1.

@@ -88,7 +88,7 @@ mod test {
     use super::{Location, PeekableBuffer};
 
     #[test]
-    fn test_location() {
+    fn location() {
         let source = "a\nbc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.next();
@@ -98,7 +98,7 @@ mod test {
     }
 
     #[test]
-    fn test_next_reads_values() {
+    fn next_reads_values() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         assert_eq!(buffer.next(), Some('a'));
@@ -108,7 +108,7 @@ mod test {
     }
 
     #[test]
-    fn test_next_reloads_buffer() {
+    fn next_reloads_buffer() {
         let source = "a\nbc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         assert_eq!(buffer.next(), Some('a'));
@@ -119,7 +119,7 @@ mod test {
     }
 
     #[test]
-    fn test_next_consumes_value() {
+    fn next_consumes_value() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.next();
@@ -127,7 +127,7 @@ mod test {
     }
 
     #[test]
-    fn test_next_returns_peeked() {
+    fn next_returns_peeked() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.peek();
@@ -135,7 +135,7 @@ mod test {
     }
 
     #[test]
-    fn test_next_consumes_peeked() {
+    fn next_consumes_peeked() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.peek();
@@ -144,14 +144,14 @@ mod test {
     }
 
     #[test]
-    fn test_peek_returns_first_value() {
+    fn peek_returns_first_value() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         assert_eq!(buffer.peek(), Some('a'));
     }
 
     #[test]
-    fn test_peek_returns_existing_peeked_value() {
+    fn peek_returns_existing_peeked_value() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.peek();
@@ -159,7 +159,7 @@ mod test {
     }
 
     #[test]
-    fn test_peek_returns_second_peeked_value() {
+    fn peek_returns_second_peeked_value() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.next();
@@ -168,7 +168,7 @@ mod test {
     }
 
     #[test]
-    fn test_consume() {
+    fn consume() {
         let source = "abc".as_bytes();
         let mut buffer = PeekableBuffer::new(source);
         buffer.peek();
