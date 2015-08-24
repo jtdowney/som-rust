@@ -565,7 +565,7 @@ impl<R: BufRead, P: AsRef<Path>> Parser<R, P> {
 
 #[cfg(test)]
 #[allow(unused_must_use)]
-mod test {
+mod tests {
     use compiler::ast;
     use compiler::Symbol;
     use super::{Error, Parser};

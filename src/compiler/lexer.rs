@@ -304,7 +304,7 @@ impl<R: BufRead> Lexer<R> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Item, Lexer};
     use compiler::{Symbol, Token};
     use util::peekable_buffer::Location;

@@ -84,7 +84,7 @@ impl<R: BufRead> Iterator for PeekableBuffer<R> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Location, PeekableBuffer};
 
     #[test]
